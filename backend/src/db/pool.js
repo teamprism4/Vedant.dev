@@ -3,18 +3,32 @@ import "dotenv/config";
 
 const { Pool } = pg;
 
-// Strip unsupported params (e.g. channel_binding) that pg doesn't understand
-const rawUrl = process.env.DATABASE_URL ?? "";
-const dbUrl = new URL(rawUrl);
-dbUrl.searchParams.delete("channel_binding");
-const cleanUrl = dbUrl.toString();
+const rawUrl = process.env.DATABASE_URL?.trim() ?? "";
 
-const isLocal = rawUrl.includes("localhost") || rawUrl.includes("127.0.0.1");
+let cleanUrl = "";
+let isLocal = true;
 
-const pool = new Pool({
-  connectionString: cleanUrl,
-  ssl: isLocal ? false : { rejectUnauthorized: false },
-});
+if (rawUrl) {
+  try {
+    const dbUrl = new URL(rawUrl);
+    dbUrl.searchParams.delete("channel_binding");
+    cleanUrl = dbUrl.toString();
+    isLocal = rawUrl.includes("localhost") || rawUrl.includes("127.0.0.1");
+  } catch (err) {
+    console.warn("[DB] Warning: Malformed DATABASE_URL:", err.message);
+  }
+} else {
+  console.warn("[DB] Notice: DATABASE_URL is not set. Cache will operate with graceful live fallback.");
+}
+
+const pool = new Pool(
+  cleanUrl
+    ? {
+        connectionString: cleanUrl,
+        ssl: isLocal ? false : { rejectUnauthorized: false },
+      }
+    : {}
+);
 
 pool.on("error", (err) => {
   console.error("[DB] Unexpected client error:", err.message);

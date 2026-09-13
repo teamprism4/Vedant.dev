@@ -6,22 +6,32 @@ import contactRouter from "./routes/contact.js";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
-const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
+const FRONTEND_URL = (process.env.FRONTEND_URL || "http://localhost:3000").replace(/\/+$/, "");
 
-const allowedOrigins = [
+const staticAllowedOrigins = new Set([
   "http://localhost:3000",
   "http://localhost:3001",
-  "https://vedant-dev-nine.vercel.app/",
+  "https://vedant-dev-nine.vercel.app",
   FRONTEND_URL,
-].filter(Boolean);
+].filter(Boolean));
+
+function isOriginAllowed(origin) {
+  if (!origin) return true;
+  const normalized = origin.replace(/\/+$/, "");
+  if (staticAllowedOrigins.has(normalized)) return true;
+  // Allow Vercel preview and production subdomains
+  if (/^https:\/\/([a-zA-Z0-9_-]+\.)?vercel\.app$/.test(normalized)) return true;
+  return false;
+}
 
 // ── Middleware ─────────────────────────────────────────────────────────────
 app.use(
   cors({
     origin: (origin, callback) => {
       // allow requests with no origin (curl, Postman, server-to-server)
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin)) return callback(null, true);
+      if (isOriginAllowed(origin)) {
+        return callback(null, true);
+      }
       callback(new Error(`CORS: origin ${origin} not allowed`));
     },
     methods: ["GET", "POST", "OPTIONS"],

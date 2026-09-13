@@ -31,7 +31,11 @@ async function respondWithStats(source, fetcher, res) {
   if (needsFresh) {
     try {
       const fresh = await fetcher();
-      await cache.set(source, fresh);
+      try {
+        await cache.set(source, fresh);
+      } catch (cacheErr) {
+        console.warn(`[stats] Failed to write cache for ${source}:`, cacheErr.message);
+      }
       return res.json({ data: fresh, stale: false, source: "live" });
     } catch (err) {
       console.error(`[stats] Live fetch failed for ${source}:`, err.message);
